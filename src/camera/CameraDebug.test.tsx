@@ -41,6 +41,22 @@ function fakeDetection() {
   }
 }
 
+describe('CameraDebug with ?cam=any', () => {
+  it('opens the laptop camera when there is no hat cam', async () => {
+    window.history.replaceState(null, '', '/?debug=camera&cam=any')
+    vi.resetModules()
+    try {
+      installFakeMediaDevices([MACBOOK])
+      const { default: Debug } = await import('./CameraDebug.tsx')
+      render(<Debug detectionDeps={fakeDetection().deps} />)
+      expect(await screen.findByText('live')).toBeInTheDocument()
+      expect(screen.getByText(MACBOOK.label)).toBeInTheDocument()
+    } finally {
+      window.history.replaceState(null, '', '/')
+    }
+  })
+})
+
 describe('CameraDebug', () => {
   it('shows the live hat cam with its label and resolution', async () => {
     installFakeMediaDevices([MACBOOK, C270, IPHONE])

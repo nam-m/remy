@@ -10,6 +10,7 @@ import { GrabPanel } from './GrabPanel.tsx'
 import { HandOverlay } from './HandOverlay.tsx'
 import type { DetectionDeps } from './useDetection.ts'
 import { useCamera } from './useCamera.ts'
+import { USE_ANY_CAMERA, useAnyCam } from './useAnyCam.ts'
 import { useWakeLock } from './useWakeLock.ts'
 import './CameraDebug.css'
 
@@ -58,6 +59,8 @@ export default function CameraDebug({
   // The same hook the controller will use, so this page shows exactly what the app gets.
   const camera = useCamera({
     deps: { detection: detectionDeps, grab },
+    // ?cam=any opens the laptop's camera instead of the hat cam, as in the app.
+    source: USE_ANY_CAMERA ? useAnyCam : undefined,
     onGesture: (e) => setEvents((list) => [e, ...list].slice(0, MAX_EVENTS)),
     onDetection: (d) => setTally((t) => stepTally(t, d)),
   })
