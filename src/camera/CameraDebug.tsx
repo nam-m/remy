@@ -1,10 +1,9 @@
 // Developer page for the camera track, at /?debug=camera.
 // Each camera branch adds a panel here so it can be checked on the real hat cam.
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { GestureEvent } from '../types.ts'
 import { CAMERA_ERROR_MESSAGES } from './cameraMessages.ts'
-import { gestureName, mappingFromSearch } from './gestureMapper.ts'
 import { emptyTally, stepTally } from './gestureTally.ts'
 import { GrabError, grabSharpestFrame, type GrabResult } from './grabSharpestFrame.ts'
 import { GrabPanel } from './GrabPanel.tsx'
@@ -17,6 +16,8 @@ import './CameraDebug.css'
 /** How many fired gestures the log keeps. */
 const MAX_EVENTS = 5
 
+/** The gestures that control cooking mode; always listed, even at zero. */
+const CONTROL_GESTURES = ['Thumb_Up', 'Thumb_Down', 'Open_Palm']
 
 /** Frames per second actually delivered to the video element. */
 function useFrameRate(video: HTMLVideoElement | null, live: boolean): number | null {
@@ -55,12 +56,7 @@ export default function CameraDebug({
   const [events, setEvents] = useState<GestureEvent[]>([])
 
   // The same hook the controller will use, so this page shows exactly what the app gets.
-  // ?check=Victory (or Closed_Fist, Pointing_Up...) tries another gesture for check.
-  const { mapping, checkLabel } = useMemo(() => mappingFromSearch(window.location.search), [])
-  const controlGestures = ['Thumb_Up', 'Thumb_Down', checkLabel]
-
   const camera = useCamera({
-    mapping,
     deps: { detection: detectionDeps, grab },
     onGesture: (e) => setEvents((list) => [e, ...list].slice(0, MAX_EVENTS)),
     onDetection: (d) => setTally((t) => stepTally(t, d)),
@@ -90,7 +86,7 @@ export default function CameraDebug({
     return (grab ?? grabSharpestFrame)(video)
   }
 
-  const tallied = [...new Set([...controlGestures, ...Object.keys(tally.hits)])]
+  const tallied = [...new Set([...CONTROL_GESTURES, ...Object.keys(tally.hits)])]
   const gestureText =
     !detection || !detection.handPresent
       ? 'No hand'
@@ -155,9 +151,6 @@ export default function CameraDebug({
           <section className="camera-debug__panel">
             <h2>Gestures</h2>
             <p className="camera-debug__hint">Hold a gesture for 1 s to fire it. After a fire, let go before the next one.</p>
-            <p className="camera-debug__hint" data-testid="check-gesture">
-              {`Check is ${gestureName(checkLabel)}. To try another, add ?check=Victory, Closed_Fist, Pointing_Up or ILoveYou to the address.`}
-            </p>
             <dl>
               <dt>Hand visible</dt>
               <dd data-testid="hand-visible">{handVisible ? 'yes' : 'no'}</dd>

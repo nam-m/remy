@@ -2,10 +2,9 @@
 // a recipe parsed by the model, and a photo from the hat cam checked by it.
 // With the dev server running and GEMINI_API_KEY in .env.local, nothing here is faked.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createApi } from '../api/index.ts'
 import { CAMERA_ERROR_MESSAGES } from '../camera/cameraMessages.ts'
-import { gestureName, mappingFromSearch } from '../camera/gestureMapper.ts'
 import { MIN_SCORE } from '../camera/gestureTally.ts'
 import type { GrabResult } from '../camera/grabSharpestFrame.ts'
 import type { DetectionDeps } from '../camera/useDetection.ts'
@@ -120,10 +119,7 @@ export default function ApiDebug({
 
   // Every gesture that fires is logged, whether or not this page acts on it.
   const [fired, setFired] = useState<GestureEvent[]>([])
-  // ?check=Victory (or Closed_Fist, Pointing_Up...) tries another gesture for check.
-  const { mapping, checkLabel } = useMemo(() => mappingFromSearch(window.location.search), [])
   const camera = useCamera({
-    mapping,
     paused: checking,
     deps: { detection: detectionDeps, grab },
     onGesture: (event) => {
@@ -268,9 +264,7 @@ export default function ApiDebug({
             <button type="button" onClick={check} disabled={!live || checking}>
               {checking ? 'Checking...' : 'Check with a photo'}
             </button>
-            <p className="camera-debug__hint" data-testid="check-hint">
-              {`Or hold ${gestureName(checkLabel)} for 1 s, then take your hand away: it checks by itself. To try another gesture, add ?check=Victory (or Closed_Fist, Pointing_Up) to the address.`}
-            </p>
+            <p className="camera-debug__hint">Or hold an open palm for 1 s, then take your hand away: it checks by itself.</p>
 
             {checkError && <ErrorLine failure={checkError} />}
             {verdict && (
