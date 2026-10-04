@@ -641,3 +641,38 @@
     animation: none;
   }
 }
+/* --- Dev only: which backend and camera this run is using (DevTag). --- */
+.ui-devtag {
+  position: fixed;
+  top: 6px;
+  left: 50%;
+  z-index: 50;
+  display: flex;
+  gap: 14px;
+  padding: 3px 14px;
+  border-radius: 999px;
+  background: rgb(29 27 32 / 82%);
+  color: var(--cream);
+  font-size: 12px;
+  font-weight: 700;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.ui-devtag span::before {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--stone);
+  content: '';
+}
+
+.ui-devtag .is-ok::before {
+  background: var(--sage);
+}
+
+.ui-devtag .is-off::before {
+  background: var(--sparkle);
+}

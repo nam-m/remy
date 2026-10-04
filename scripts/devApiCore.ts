@@ -105,3 +105,28 @@ export async function handleApiRequest(
   if (reply.status === 0) return failure(500, 'unknown', `/api/${route} did not answer.`)
   return reply
 }
+
+/**
+ * Copies API keys from the env file into the process environment. Vite restarts the dev server inside
+ * the same process whenever the env file changes, so a key this function set earlier has to be replaced
+ * by the new value, or dropped when its line is removed; otherwise the first value saved sticks until
+ * the whole process is restarted. A key exported in the shell, which this function never set, still
+ * wins over the file.
+ */
+export function syncEnvKeys(
+  keys: readonly string[],
+  file: Record<string, string>,
+  target: Record<string, string | undefined>,
+  setByUs: Set<string>,
+): void {
+  for (const key of keys) {
+    if (target[key] && !setByUs.has(key)) continue
+    if (file[key]) {
+      target[key] = file[key]
+      setByUs.add(key)
+    } else if (setByUs.has(key)) {
+      delete target[key]
+      setByUs.delete(key)
+    }
+  }
+}

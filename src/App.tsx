@@ -3,6 +3,7 @@
 import { CookingProvider } from './cooking/contract.ts'
 import { useCooking } from './cooking/context.ts'
 import { CookingScreen } from './ui/CookingScreen.tsx'
+import { DevTag } from './ui/DevTag.tsx'
 import { DoneScreen } from './ui/DoneScreen.tsx'
 import { PrepReview } from './ui/PrepReview.tsx'
 import { RecipeInput } from './ui/RecipeInput.tsx'
@@ -40,6 +41,7 @@ export default function App() {
     <div className="ui">
       <CookingProvider>
         <Screens />
+        {import.meta.env.DEV && <DevTag />}
       </CookingProvider>
     </div>
   )
