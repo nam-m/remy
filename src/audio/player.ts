@@ -78,7 +78,9 @@ export function createAudioPlayer(deps: AudioPlayerDeps): AudioPlayer {
     const finish = finishCurrent
     finishCurrent = null
     finish?.('stopped')
-    element?.pause()
+    // The <audio> is shared by every player on the page, so only pause it for a clip this player started.
+    // A player with nothing playing (an old one left by a hot reload) must not cut a newer player's clip.
+    if (finish) element?.pause()
     speech.cancel()
   }
 
@@ -86,19 +88,29 @@ export function createAudioPlayer(deps: AudioPlayerDeps): AudioPlayer {
   // talking last wins, and the other stops. Ties go to the larger page id.
   const pageId = deps.pageId ?? Math.random().toString(36).slice(2)
   const now = deps.now ?? Date.now
-  const channel = deps.channel !== undefined ? deps.channel : typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('remy-voice')
   let startedAt = 0
-  channel?.addEventListener('message', ({ data }) => {
-    const other = data as { id?: unknown; t?: unknown } | null
-    if (typeof other?.id !== 'string' || typeof other.t !== 'number' || other.id === pageId) return
-    if (other.t > startedAt || (other.t === startedAt && other.id > pageId)) stop()
-  })
+  // Opened on this player's first voice, not when it is created: React's Strict Mode builds a player it
+  // then throws away, and that one must not sit on the channel cancelling the live player's speech.
+  let channel: VoiceChannel | null | undefined = deps.channel
+  let listening = false
+  const openChannel = () => {
+    if (channel === undefined) channel = typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('remy-voice')
+    if (!listening) {
+      listening = true
+      channel?.addEventListener('message', ({ data }) => {
+        const other = data as { id?: unknown; t?: unknown } | null
+        if (typeof other?.id !== 'string' || typeof other.t !== 'number' || other.id === pageId) return
+        if (other.t > startedAt || (other.t === startedAt && other.id > pageId)) stop()
+      })
+    }
+    return channel
+  }
 
   /** Every new voice starts here: cut whatever was playing, here and on other pages. */
   const begin = () => {
     stop()
     startedAt = now()
-    channel?.postMessage({ id: pageId, t: startedAt })
+    openChannel()?.postMessage({ id: pageId, t: startedAt })
     return token
   }
 

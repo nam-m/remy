@@ -317,6 +317,58 @@ describe('one voice across pages', () => {
   })
 })
 
+describe('an old player on the same page', () => {
+  /** Two players on one page sharing one <audio> element and one channel, as after a hot reload. */
+  function sameElement() {
+    const audio = new FakeAudio()
+    const listeners: Array<{ owner: number; fn: (e: { data: unknown }) => void }> = []
+    const make = (owner: number, id: string, clock: { t: number }) => {
+      const urls = new FakeObjectUrls()
+      const cache = createClipCache(urls)
+      const channel = {
+        // Like a real BroadcastChannel: delivered a task later, to every other instance.
+        postMessage: (data: unknown) => void setTimeout(() => listeners.filter((l) => l.owner !== owner).forEach((l) => l.fn({ data })), 0),
+        addEventListener: (_: 'message', fn: (e: { data: unknown }) => void) => void listeners.push({ owner, fn }),
+      }
+      const speech = createBrowserSpeech({ engine: null })
+      const player = createAudioPlayer({ speak: async (t) => blob(t), cache, speech, urls, createAudio: () => audio, channel, pageId: id, now: () => clock.t })
+      return { player, cache }
+    }
+    return { audio, make }
+  }
+
+  it('does not pause the clip a newer player has just started', async () => {
+    const clock = { t: 100 }
+    const { audio, make } = sameElement()
+    const old = make(1, 'old', clock)
+    const current = make(2, 'current', clock)
+    old.cache.put('x', blob('x'))
+    current.cache.put('y', blob('y'))
+
+    void old.player.play('x')
+    await tick()
+    old.player.stop()
+
+    clock.t = 150
+    void current.player.play('y')
+    await tick() // the old player hears about it here
+    expect(audio.paused).toBe(false)
+  })
+
+  it('opens the page channel on its first voice, so an unused player never listens', async () => {
+    const opened = vi.fn()
+    vi.stubGlobal('BroadcastChannel', class { constructor() { opened() } postMessage() {} addEventListener() {} })
+    try {
+      const player = createAudioPlayer({ speak: async (t) => blob(t), cache: createClipCache(new FakeObjectUrls()), createAudio: () => new FakeAudio() })
+      expect(opened).not.toHaveBeenCalled()
+      void player.play('missing')
+      expect(opened).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
 describe('one <audio> per page', () => {
   it('shares one element between players, so a second player cuts the first instead of playing over it', async () => {
     // jsdom has no playback, so the test setup stubs play(); note which element each call is on.
