@@ -340,3 +340,43 @@ describe('CameraDebug gestures panel', () => {
     expect(events[1]).toHaveTextContent('next')
   })
 })
+
+describe('CameraDebug check gesture option', () => {
+  afterEach(() => {
+    window.history.pushState({}, '', '/')
+  })
+
+  const victory: Detection = { label: 'Victory', score: 0.93, handPresent: true, landmarks: hand }
+  const palm: Detection = { label: 'Open_Palm', score: 0.93, handPresent: true, landmarks: hand }
+
+  async function openAt(search: string) {
+    window.history.pushState({}, '', `/${search}`)
+    installFakeMediaDevices([C270])
+    const fake = fakeDetection()
+    render(<CameraDebug detectionDeps={fake.deps} />)
+    await screen.findByText('Detection: ready')
+    return fake
+  }
+
+  it('uses an open palm for check by default, and says so', async () => {
+    await openAt('')
+    expect(screen.getByTestId('check-gesture')).toHaveTextContent('an open palm')
+    expect(screen.getByTestId('tally-Open_Palm')).toBeInTheDocument()
+  })
+
+  it('uses another gesture for check when the address says ?check=, and lists it to be counted', async () => {
+    const fake = await openAt('?check=Victory')
+    expect(screen.getByTestId('check-gesture')).toHaveTextContent('a victory sign')
+    expect(screen.getByTestId('tally-Victory')).toBeInTheDocument()
+    expect(screen.queryByTestId('tally-Open_Palm')).not.toBeInTheDocument()
+
+    fake.holdFor(victory, 0, 1070)
+    expect(await screen.findByTestId('gesture-event')).toHaveTextContent('check')
+  })
+
+  it('no longer fires check for the open palm when another gesture was chosen', async () => {
+    const fake = await openAt('?check=Victory')
+    fake.holdFor(palm, 0, 1070)
+    expect(screen.queryByTestId('gesture-event')).not.toBeInTheDocument()
+  })
+})
