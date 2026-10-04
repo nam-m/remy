@@ -14,7 +14,7 @@ import type { GestureEvent } from '../types.ts'
 import { createController, toAppError } from './controller.ts'
 import type { CameraPort } from './ports.ts'
 import { stepClipId } from './scaling.ts'
-import { currentStep, gesturesEnabled } from './selectors.ts'
+import { canCheck, currentStep, gesturesEnabled } from './selectors.ts'
 import { cookingReducer, initialState, type Action, type CookingState } from './state.ts'
 import { filledSteps } from './uiSelectors.ts'
 import { CookingContext, DetectionContext, HoldProgressContext, type DetectionReading } from './context.ts'
@@ -146,8 +146,10 @@ export function CookingProvider({ children }: { children: React.ReactNode }) {
 
       async onGesture(e) {
         const before = stateRef.current
-        // Leaving a verdict by 👎 (or cancelling its countdown) cuts its speech off (§6.8 navigateFlow).
-        if (e.intent === 'back' && before.mode === 'verdict') audio.stop()
+        // A gesture that acts cuts the voice at once, not a render later: the new voice (the next
+        // step, "hold still", the verdict) starts when the state changes, and nothing plays over it.
+        // A ✋ on a step with nothing to check does nothing, so it leaves the voice alone.
+        if (gesturesEnabled(before) && (e.intent !== 'check' || canCheck(before))) audio.stop()
         await flow.onGesture(e)
         // 👎 on the first step does not change the step, but the cook still wants it read again,
         // unless the 👎 only cancelled a ready countdown (§6.5).

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type Mock } from 'vitest'
 import { FakeAudio, FakeObjectUrls, FakeSpeechSynthesis, FakeUtterance, voice } from '../test/fakes/audio.ts'
 import { createBrowserSpeech, type SpeechEngine } from './browserSpeech.ts'
 import { createClipCache } from './clipCache.ts'
@@ -19,7 +19,7 @@ function setup(speak: (text: string) => Promise<Blob> = async (text) => blob(tex
   })
   const speakSpy = vi.fn(speak)
   const created = vi.fn(() => audio)
-  const player = createAudioPlayer({ speak: speakSpy, cache, speech, urls, createAudio: created })
+  const player = createAudioPlayer({ speak: speakSpy, cache, speech, urls, createAudio: created, channel: null })
   const said = () => engine.spoken.filter((u) => u.volume > 0).map((u) => u.text)
   return { player, audio, urls, cache, engine, speak: speakSpy, created, said }
 }
@@ -261,5 +261,77 @@ describe('AudioPlayer', () => {
       expect(audio.src).toBe(cache.get('step-4'))
       expect(audio.plays).toHaveLength(1)
     })
+  })
+})
+
+describe('one voice across pages', () => {
+  /** Two pages of the app, wired so each hears the other's "I started talking" message. */
+  function twoPages() {
+    const listeners: Array<{ owner: number; fn: (e: { data: unknown }) => void }> = []
+    const channelFor = (owner: number) => ({
+      postMessage: (data: unknown) => listeners.filter((l) => l.owner !== owner).forEach((l) => l.fn({ data })),
+      addEventListener: (_: 'message', fn: (e: { data: unknown }) => void) => void listeners.push({ owner, fn }),
+    })
+    const make = (owner: number, id: string, clock: { t: number }) => {
+      const audio = new FakeAudio()
+      const urls = new FakeObjectUrls()
+      const cache = createClipCache(urls)
+      const speech = createBrowserSpeech({ engine: new FakeSpeechSynthesis([voice('Samantha', 'en-US')]) as unknown as SpeechEngine, makeUtterance: (t) => new FakeUtterance(t) as unknown as SpeechSynthesisUtterance })
+      const player = createAudioPlayer({ speak: async (t) => blob(t), cache, speech, urls, createAudio: () => audio, channel: channelFor(owner), pageId: id, now: () => clock.t })
+      return { player, audio, cache }
+    }
+    return { make }
+  }
+
+  it('stops this page when another page starts talking after it', async () => {
+    const clock = { t: 100 }
+    const { make } = twoPages()
+    const a = make(1, 'a', clock)
+    const b = make(2, 'b', clock)
+    a.player.preload('x', blob('x'))
+    b.player.preload('y', blob('y'))
+
+    void a.player.play('x')
+    await tick()
+    expect(a.audio.paused).toBe(false)
+
+    clock.t = 150
+    void b.player.play('y')
+    await tick()
+    expect(a.audio.paused).toBe(true) // the earlier voice is cut
+    expect(b.audio.paused).toBe(false) // the newer one plays
+  })
+
+  it('leaves the newer page alone when an older page speaks first', async () => {
+    const { make } = twoPages()
+    const a = make(1, 'a', { t: 100 })
+    const b = make(2, 'b', { t: 200 })
+    a.player.preload('x', blob('x'))
+    b.player.preload('y', blob('y'))
+
+    void b.player.play('y')
+    await tick()
+    void a.player.play('x') // a started earlier than b, by the clocks, so b keeps talking
+    await tick()
+    expect(b.audio.paused).toBe(false)
+  })
+})
+
+describe('one <audio> per page', () => {
+  it('shares one element between players, so a second player cuts the first instead of playing over it', async () => {
+    // jsdom has no playback, so the test setup stubs play(); note which element each call is on.
+    const seen: unknown[] = []
+    const stub = HTMLMediaElement.prototype.play as unknown as Mock
+    for (let i = 0; i < 2; i++) {
+      stub.mockImplementationOnce(function (this: HTMLMediaElement) {
+        seen.push(this)
+        return Promise.resolve()
+      })
+    }
+    const make = () => createAudioPlayer({ speak: async (t) => blob(t), cache: createClipCache(new FakeObjectUrls()), channel: null })
+    await make().unlock()
+    await make().unlock()
+    expect(seen).toHaveLength(2)
+    expect(seen[0]).toBe(seen[1])
   })
 })

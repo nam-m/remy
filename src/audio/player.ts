@@ -28,8 +28,31 @@ export interface AudioPlayerDeps {
   speak(text: string): Promise<Blob>
   cache?: ClipCache
   speech?: BrowserSpeech
+  /** Defaults to one <audio> for the whole page, shared by every player (see pageAudio). */
   createAudio?: () => AudioElement
   urls?: ObjectUrls
+  /** How this page tells other open pages of the app it started talking. Defaults to a BroadcastChannel. */
+  channel?: VoiceChannel | null
+  /** Milliseconds; the later page to start talking wins. */
+  now?: () => number
+  pageId?: string
+}
+
+/** The parts of a BroadcastChannel the player uses. */
+export interface VoiceChannel {
+  postMessage(message: unknown): void
+  addEventListener(type: 'message', listener: (event: { data: unknown }) => void): void
+}
+
+/**
+ * One <audio> for the whole page, kept on globalThis. A second player (a hot reload, a duplicate
+ * provider) then plays on the same element, so starting a clip replaces whatever the first one was
+ * saying instead of playing over it.
+ */
+const PAGE_AUDIO = Symbol.for('remy.pageAudio')
+function pageAudio(): AudioElement {
+  const page = globalThis as unknown as Record<symbol, AudioElement | undefined>
+  return (page[PAGE_AUDIO] ??= new Audio())
 }
 
 type Outcome = 'ended' | 'failed' | 'stopped'
@@ -38,7 +61,7 @@ export function createAudioPlayer(deps: AudioPlayerDeps): AudioPlayer {
   const cache = deps.cache ?? clipCache
   const speech = deps.speech ?? createBrowserSpeech()
   const urls = deps.urls ?? URL
-  const createAudio = deps.createAudio ?? (() => new Audio())
+  const createAudio = deps.createAudio ?? pageAudio
 
   // One element for everything, created on first use. Reusing it matters on Safari,
   // where the autoplay unlock applies to the element that played inside the click.
@@ -59,8 +82,23 @@ export function createAudioPlayer(deps: AudioPlayerDeps): AudioPlayer {
     speech.cancel()
   }
 
+  // Another open page of the app (a second tab) must not talk over this one: whichever page started
+  // talking last wins, and the other stops. Ties go to the larger page id.
+  const pageId = deps.pageId ?? Math.random().toString(36).slice(2)
+  const now = deps.now ?? Date.now
+  const channel = deps.channel !== undefined ? deps.channel : typeof BroadcastChannel === 'undefined' ? null : new BroadcastChannel('remy-voice')
+  let startedAt = 0
+  channel?.addEventListener('message', ({ data }) => {
+    const other = data as { id?: unknown; t?: unknown } | null
+    if (typeof other?.id !== 'string' || typeof other.t !== 'number' || other.id === pageId) return
+    if (other.t > startedAt || (other.t === startedAt && other.id > pageId)) stop()
+  })
+
+  /** Every new voice starts here: cut whatever was playing, here and on other pages. */
   const begin = () => {
     stop()
+    startedAt = now()
+    channel?.postMessage({ id: pageId, t: startedAt })
     return token
   }
 

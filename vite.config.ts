@@ -13,6 +13,8 @@ export default defineConfig({
     environment: 'jsdom',
     // The whole suite runs in parallel, which can push a slow async test past the 5 s default.
     testTimeout: 20_000,
+    // Fewer workers than cores: jsdom tests that wait on timers flake when ten of them fight for the CPU.
+    maxWorkers: 4,
     setupFiles: ['./src/test/setup.ts'],
   },
 })

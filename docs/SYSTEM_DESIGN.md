@@ -759,7 +759,7 @@ interface AudioPlayer {
 
 Rules:
 
-- **One voice at a time.** Every `play`, `playBlob` and `speakLive` first calls `stop()`, so a quick next-next never layers two clips.
+- **One voice at a time.** Every `play`, `playBlob` and `speakLive` first calls `stop()`, so a quick next-next never layers two clips. This holds across players and pages too: every player uses one `<audio>` kept on `globalThis` (so a hot-reloaded or duplicate player replaces a clip instead of playing over it), and pages of the app tell each other over a `BroadcastChannel` when they start talking, so the page that spoke last wins and a second tab goes quiet. The cooking provider also cuts the voice the instant a gesture acts, before the state change that starts the next voice.
 - **Autoplay unlock.** Browsers block audio until a click. `unlock()` plays a silent clip inside the Start click handler; after that, playback triggered by a gesture works.
 - **Browser speech fallback** (PLAN must-have 4). If a clip is missing or a live verdict's speech request fails, `browserSpeech.say(text)` reads it with `speechSynthesis`, using an English voice picked once at startup. It sounds worse but keeps cooking mode hands-free.
 
