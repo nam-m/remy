@@ -18,7 +18,7 @@ import { currentStep, gesturesEnabled } from './selectors.ts'
 import { cookingReducer, initialState, type Action, type CookingState } from './state.ts'
 import { filledSteps } from './uiSelectors.ts'
 import { CookingContext, HoldProgressContext } from './context.ts'
-import type { Controller, CookingContextValue } from './contract.ts'
+import type { Controller, CookingContextValue, GestureStatus } from './contract.ts'
 
 /** Changing servings waits this long before voicing again, so holding + doesn't start a run per click (§6.8). */
 const REVOICE_DEBOUNCE_MS = 600
@@ -233,9 +233,15 @@ export function CookingProvider({ children }: { children: React.ReactNode }) {
     [attachVideo, video, status, error, label, stream, reconnects, stalls],
   )
 
+  const { detectionStatus, detectionError, handVisible } = camera
+  const gestures = useMemo<GestureStatus>(
+    () => ({ status: detectionStatus, error: detectionError, handVisible }),
+    [detectionStatus, detectionError, handVisible],
+  )
+
   const value = useMemo<CookingContextValue>(
-    () => ({ state, controller, dispatch, camera: cameraSlice, voiceFailed }),
-    [state, controller, dispatch, cameraSlice, voiceFailed],
+    () => ({ state, controller, dispatch, camera: cameraSlice, gestures, voiceFailed }),
+    [state, controller, dispatch, cameraSlice, gestures, voiceFailed],
   )
 
   return (

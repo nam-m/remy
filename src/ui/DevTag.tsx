@@ -4,34 +4,57 @@
 import { isMockApi } from '../api/index.ts'
 import { USE_ANY_CAMERA } from '../camera/useAnyCam.ts'
 import type { CameraErrorKind } from '../camera/openHatCam.ts'
-import { useCooking, type HatCam } from '../cooking/contract.ts'
+import { useCooking, type GestureStatus, type HatCam } from '../cooking/contract.ts'
 
-/** What each half of the tag says, and whether it is what the cook (or the demo) expects. */
+type Part = { text: string; ok: boolean }
+
+/** What each part of the tag says, and whether it is what the cook (or the demo) expects. */
 export function describeSetup(setup: {
   mock: boolean
   anyCam: boolean
   status: HatCam['status']
   error: CameraErrorKind | null
-}): { backend: { text: string; ok: boolean }; camera: { text: string; ok: boolean } } {
+  cooking: boolean
+  gestures: GestureStatus
+}): { backend: Part; camera: Part; gestures: Part } {
   const name = setup.anyCam ? 'Laptop camera' : 'Hat cam'
   let state: string = setup.status
   if (setup.status === 'live') state = 'live'
   else if (setup.error === 'not_found') {
     state = setup.anyCam ? 'not found' : "Logitech not found, add ?cam=any to use this laptop's camera"
   } else if (setup.error === 'denied') state = 'blocked in browser settings'
+
+  const { gestures } = setup
+  let gesture: Part
+  if (!setup.cooking) gesture = { text: 'Gestures: start on the cooking screen', ok: true }
+  else if (gestures.status === 'error') gesture = { text: `Gestures: failed${gestures.error ? ` (${gestures.error})` : ''}`, ok: false }
+  else if (gestures.status === 'loading') gesture = { text: 'Gestures: loading the hand model', ok: false }
+  else gesture = { text: gestures.handVisible ? 'Gestures: hand seen' : 'Gestures: ready, no hand in view', ok: true }
+
   return {
     backend: { text: setup.mock ? 'Stand-in backend' : 'Real backend', ok: !setup.mock },
     camera: { text: `${name}: ${state}`, ok: setup.status === 'live' },
+    gestures: gesture,
   }
 }
 
 export function DevTag() {
-  const { camera } = useCooking()
-  const { backend, camera: cam } = describeSetup({ mock: isMockApi(), anyCam: USE_ANY_CAMERA, status: camera.status, error: camera.error })
+  const { camera, gestures, state } = useCooking()
+  const tag = describeSetup({
+    mock: isMockApi(),
+    anyCam: USE_ANY_CAMERA,
+    status: camera.status,
+    error: camera.error,
+    cooking: state.phase === 'cooking',
+    gestures,
+  })
   return (
     <div className="ui-devtag" role="note" aria-label="Development setup">
-      <span className={backend.ok ? 'is-ok' : 'is-off'}>{backend.text}</span>
-      <span className={cam.ok ? 'is-ok' : 'is-off'}>{cam.text}</span>
+      {[tag.backend, tag.camera, tag.gestures].map(part => (
+        <span key={part.text} className={part.ok ? 'is-ok' : 'is-off'}>
+          {part.text}
+        </span>
+      ))}
     </div>
   )
 }

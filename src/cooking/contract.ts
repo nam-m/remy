@@ -3,6 +3,7 @@
 // The state, actions, reducer and selectors are Nam's (state.ts, selectors.ts); the controller is his
 // createController (controller.ts) plus the voice flow, wired in CookingProvider.tsx.
 import type { HatCam } from '../camera/useHatCam.ts'
+import type { DetectionStatus } from '../camera/useDetection.ts'
 import type { GestureEvent } from '../types.ts'
 import type { Controller as FlowController } from './controller.ts'
 import type { Action, CookingState } from './state.ts'
@@ -26,6 +27,13 @@ export interface Controller extends FlowController {
 
 // ---------- Context (§6.9, §9.5) ----------
 
+/** Whether hand gestures can be read: the hand model loaded, and whether a hand is in view. */
+export interface GestureStatus {
+  status: DetectionStatus
+  error: string | null
+  handVisible: boolean
+}
+
 /**
  * What useCooking() returns. Read-only state plus the ways to change it.
  * Hold progress updates ~15×/s, so it lives in its own context: read it with useHoldProgress().
@@ -36,6 +44,8 @@ export interface CookingContextValue {
   dispatch: (action: UiAction) => void
   /** The single hat cam (or the default camera with ?cam=any), for <CameraView>. Stable between renders, so hold ticks don't re-render screens. */
   camera: HatCam
+  /** Gesture reading, for the "gestures aren't working" note and the dev tag. Changes rarely, unlike hold progress. */
+  gestures: GestureStatus
   /** The voice could not be prepared (any error kind), so the prep screen offers "Try again". */
   voiceFailed: boolean
 }

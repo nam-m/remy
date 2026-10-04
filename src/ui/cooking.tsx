@@ -120,6 +120,33 @@ export function GestureLegend({ canCheck }: { canCheck: boolean }) {
 }
 
 /**
+ * A small live view in the corner of a verdict that waits for the cook: they can see their hand for
+ * ✋ and 👍, or move the bowl, instead of gesturing at a screen that hides the camera.
+ */
+function VerdictCamera() {
+  const { camera } = useCooking()
+  return (
+    <CameraView
+      cam={camera}
+      caption="Remy's view"
+      className="ui-verdict__cam"
+      style={{ '--cam-ring': 'var(--cream)', '--cam-bg': 'var(--ink)', '--cam-fg': 'var(--cream)' } as CSSProperties}
+    />
+  )
+}
+
+/** Shown when the hand model failed to load: the keys do what the gestures would. */
+export function GestureFallbackNote() {
+  const { gestures } = useCooking()
+  if (gestures.status !== 'error') return null
+  return (
+    <div className="ui-error" role="alert">
+      <span>Hand gestures aren't working. Press N for next, B for back and Space to check.</span>
+    </div>
+  )
+}
+
+/**
  * The verdict, wiping in as a circle from the camera window. `ready` celebrates and counts down to
  * the next step; the other two wait for the cook (§9.3).
  */
@@ -152,10 +179,13 @@ export function VerdictOverlay({ verdict, autoAdvanceAt, now }: { verdict: { sta
               </div>
             </>
           ) : (
-            <p className="ui-verdict__foot">{verdict.status === 'not_ready' ? '✋ check again whenever you like · 👍 move on anyway' : '✋ try again'}</p>
+            <p className="ui-verdict__foot">
+              {verdict.status === 'not_ready' ? '✋ check again whenever you like · 👍 move on anyway' : '✋ try again · 👍 move on anyway'}
+            </p>
           )}
         </div>
       </div>
+      {!ready && <VerdictCamera />}
     </div>
   )
 }

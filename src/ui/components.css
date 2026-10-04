@@ -502,7 +502,7 @@
   position: absolute;
   top: 84px;
   left: 50%;
-  z-index: 5;
+  z-index: 7; /* above the verdict overlay, so a hold is visible there too */
   display: flex;
   align-items: center;
   gap: 10px;

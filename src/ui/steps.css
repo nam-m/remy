@@ -380,3 +380,17 @@
     animation: none;
   }
 }
+/* The live view in the corner of a verdict that waits for the cook. */
+.ui-verdict__cam {
+  position: absolute;
+  top: 28px;
+  right: 36px;
+  width: clamp(200px, 18vw, 320px);
+  aspect-ratio: 16 / 9;
+  border-radius: 20px;
+  outline-offset: 4px;
+}
+
+.ui-verdict__cam figcaption {
+  font-size: 13px;
+}

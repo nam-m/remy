@@ -2,7 +2,7 @@
 // along one track, and the check happens inside the current card. Every pointer down counts as a tap.
 import { useEffect, useState } from 'react'
 import { canCheck, currentStep, filledSteps, useCooking, type ShownStep } from '../cooking/contract.ts'
-import { GestureLegend, HoldPill, StepCard, StepProgress, VerdictOverlay } from './cooking.tsx'
+import { GestureFallbackNote, GestureLegend, HoldPill, StepCard, StepProgress, VerdictOverlay } from './cooking.tsx'
 import { fieldFor } from './fields.ts'
 import { HEAD_SRC, SpeechBubble } from './Remy.tsx'
 import { SAY } from './say.ts'
@@ -46,6 +46,7 @@ export function CookingScreen() {
       onPointerDown={() => dispatch({ type: 'screenTapped' })}
     >
       <ErrorBanner error={state.error} onDismiss={() => dispatch({ type: 'errorDismissed' })} />
+      <GestureFallbackNote />
       <header className="ui-top">
         <div className="ui-logo ui-logo--light">
           <img src={HEAD_SRC} alt="" />

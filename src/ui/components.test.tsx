@@ -5,8 +5,20 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { GestureLegend, HoldPill, VerdictOverlay } from './cooking.tsx'
 import { ErrorBanner, HeadsUpBanner, ServingsStepper, VoicingProgress } from './prep.tsx'
 import { SAY } from './say.ts'
-import { HoldProgressContext } from '../cooking/context.ts'
+import { CookingContext, HoldProgressContext } from '../cooking/context.ts'
+import type { CookingContextValue } from '../cooking/contract.ts'
 import type { HoldProgress } from '../types.ts'
+
+// The verdict screens that wait for the cook show a live camera view, which reads the camera from context.
+const cooking = {
+  camera: { attachVideo() {}, video: null, status: 'live', error: null, label: null, stream: null, reconnects: 0, stalls: 0 },
+} as unknown as CookingContextValue
+const renderVerdict = (status: 'ready' | 'not_ready' | 'unsure', autoAdvanceAt: number | null = null, feedback = '') =>
+  render(
+    <CookingContext.Provider value={cooking}>
+      <VerdictOverlay verdict={{ status, feedback }} autoAdvanceAt={autoAdvanceAt} now={0} />
+    </CookingContext.Provider>,
+  )
 
 const renderPill = (hold: HoldProgress) =>
   render(
@@ -40,7 +52,7 @@ describe('GestureLegend', () => {
 describe('VerdictOverlay', () => {
   it('says something different for each of the three answers', () => {
     for (const status of ['ready', 'not_ready', 'unsure'] as const) {
-      const { unmount } = render(<VerdictOverlay verdict={{ status, feedback: 'because' }} autoAdvanceAt={null} now={0} />)
+      const { unmount } = renderVerdict(status, null, 'because')
       expect(screen.getByText(SAY.verdict[status])).toBeTruthy()
       expect(screen.getByText('because')).toBeTruthy()
       unmount()
@@ -48,16 +60,33 @@ describe('VerdictOverlay', () => {
   })
 
   it('counts down to the next step only when it is ready', () => {
-    const { container: ready } = render(<VerdictOverlay verdict={{ status: 'ready', feedback: '' }} autoAdvanceAt={2000} now={0} />)
+    const { container: ready } = renderVerdict('ready', 2000)
     expect(ready.querySelector('.ui-countdown')).toBeTruthy()
 
-    const { container: notReady } = render(<VerdictOverlay verdict={{ status: 'not_ready', feedback: '' }} autoAdvanceAt={null} now={0} />)
+    const { container: notReady } = renderVerdict('not_ready')
     expect(notReady.querySelector('.ui-countdown')).toBeNull()
   })
 
   it('gives each verdict its own colour field', () => {
-    const { container } = render(<VerdictOverlay verdict={{ status: 'unsure', feedback: '' }} autoAdvanceAt={null} now={0} />)
+    const { container } = renderVerdict('unsure')
     expect(container.querySelector('.ui-verdict--unsure')).toBeTruthy()
+  })
+
+  it('never leaves the cook without a way on: both ✋ and 👍 are offered when it is not ready or unsure', () => {
+    for (const status of ['not_ready', 'unsure'] as const) {
+      const { unmount, container } = renderVerdict(status)
+      const foot = container.querySelector('.ui-verdict__foot')?.textContent ?? ''
+      expect(foot).toContain('✋')
+      expect(foot).toContain('👍')
+      unmount()
+    }
+  })
+
+  it('shows the live camera while it waits for the cook, but not on a ready verdict that moves on by itself', () => {
+    const { container: waiting } = renderVerdict('unsure')
+    expect(waiting.querySelector('.ui-verdict__cam')).toBeTruthy()
+    const { container: ready } = renderVerdict('ready', 2000)
+    expect(ready.querySelector('.ui-verdict__cam')).toBeNull()
   })
 })
 
