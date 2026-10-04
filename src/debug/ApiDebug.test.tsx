@@ -30,6 +30,8 @@ const grabbed = (): GrabResult => ({
 
 const hand: Detection = { label: 'None', score: 0, handPresent: false, landmarks: null }
 const openPalm: Detection = { label: 'Open_Palm', score: 0.95, handPresent: true, landmarks: [] }
+const thumbsUp: Detection = { label: 'Thumb_Up', score: 0.9, handPresent: true, landmarks: [] }
+const weakPalm: Detection = { label: 'Open_Palm', score: 0.55, handPresent: true, landmarks: [] }
 
 /** Fake MediaPipe: tests push readings one frame at a time. */
 function fakeDetection() {
@@ -267,6 +269,53 @@ describe('open palm', () => {
     await screen.findByText('Detection: ready')
     detection.holdFor(openPalm, 0, 500)
     detection.holdFor(hand, 567, 1100)
+    expect(api.checkStep).not.toHaveBeenCalled()
+  })
+})
+
+describe('what the camera sees', () => {
+  async function ready() {
+    const opened = await open()
+    await live()
+    await screen.findByText('Detection: ready')
+    return opened
+  }
+
+  it('says there is no hand before anything is shown', async () => {
+    await ready()
+    expect(screen.getByTestId('seeing')).toHaveTextContent('no hand')
+  })
+
+  it('shows the gesture and its score as it is seen', async () => {
+    const { detection } = await ready()
+    detection.holdFor(openPalm, 0, 200)
+    expect(screen.getByTestId('seeing')).toHaveTextContent('Open_Palm 0.95')
+  })
+
+  it('says when a reading is too weak to count, so a palm that never fires can be explained', async () => {
+    const { detection } = await ready()
+    detection.holdFor(weakPalm, 0, 200)
+    expect(screen.getByTestId('seeing')).toHaveTextContent('Open_Palm 0.55')
+    expect(screen.getByTestId('seeing')).toHaveTextContent('below 0.7, does not count')
+  })
+
+  it('shows the hold filling up while a gesture is held', async () => {
+    const { detection } = await ready()
+    detection.holdFor(openPalm, 0, 536)
+    expect(screen.getByTestId('hold')).toHaveTextContent(/check 5\d%/)
+  })
+
+  it('logs each gesture that fires, so it is clear whether the hold completed', async () => {
+    const { detection } = await ready()
+    expect(screen.getByTestId('fired')).toHaveTextContent('none yet')
+    detection.holdFor(openPalm, 0, 1070)
+    expect(await screen.findByTestId('fired-event')).toHaveTextContent('check')
+  })
+
+  it('logs gestures this page does not act on, such as a thumbs-up, without starting a check', async () => {
+    const { api, detection } = await ready()
+    detection.holdFor(thumbsUp, 0, 1070)
+    expect(await screen.findByTestId('fired-event')).toHaveTextContent('next')
     expect(api.checkStep).not.toHaveBeenCalled()
   })
 })

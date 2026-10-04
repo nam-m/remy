@@ -5,13 +5,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { createApi } from '../api/index.ts'
 import { CAMERA_ERROR_MESSAGES } from '../camera/cameraMessages.ts'
+import { MIN_SCORE } from '../camera/gestureTally.ts'
 import type { GrabResult } from '../camera/grabSharpestFrame.ts'
 import type { DetectionDeps } from '../camera/useDetection.ts'
 import { useCamera } from '../camera/useCamera.ts'
 import { DEMO_RECIPE_TEXT } from '../cooking/demoRecipe.ts'
 import type { ApiClient } from '../cooking/ports.ts'
 import { describeIngredient, fillPlaceholders } from '../cooking/scaling.ts'
-import type { ParsedRecipe, Verdict } from '../types.ts'
+import type { GestureEvent, ParsedRecipe, Verdict } from '../types.ts'
 import '../camera/CameraDebug.css'
 import './ApiDebug.css'
 
@@ -116,10 +117,13 @@ export default function ApiDebug({
     [],
   )
 
+  // Every gesture that fires is logged, whether or not this page acts on it.
+  const [fired, setFired] = useState<GestureEvent[]>([])
   const camera = useCamera({
     paused: checking,
     deps: { detection: detectionDeps, grab },
     onGesture: (event) => {
+      setFired((list) => [event, ...list].slice(0, 3))
       if (event.intent === 'check') void check()
     },
   })
@@ -148,6 +152,15 @@ export default function ApiDebug({
       setChecking(false)
     }
   }
+
+  // What the camera sees right now, and whether it is strong enough to count.
+  const seen = camera.detection
+  const seeing =
+    !seen || !seen.handPresent
+      ? 'no hand'
+      : seen.label === 'None'
+        ? 'hand seen, no gesture recognized'
+        : `${seen.label} ${seen.score.toFixed(2)}${seen.score < MIN_SCORE ? ` (below ${MIN_SCORE}, does not count)` : ''}`
 
   const holding = camera.holdProgress.intent
     ? `${camera.holdProgress.intent} ${Math.round(camera.holdProgress.progress * 100)}%`
@@ -212,8 +225,18 @@ export default function ApiDebug({
               <dd className={`camera-debug__status camera-debug__status--${camera.status}`}>{camera.status}</dd>
               <dt>Gestures</dt>
               <dd>{`Detection: ${live ? camera.detectionStatus : 'waiting for camera'}`}</dd>
+              <dt>Seeing</dt>
+              <dd data-testid="seeing">{seeing}</dd>
               <dt>Hold</dt>
-              <dd>{holding}</dd>
+              <dd data-testid="hold">{holding}</dd>
+              <dt>Fired</dt>
+              <dd data-testid="fired">
+                {fired.length === 0
+                  ? 'none yet'
+                  : fired.map((e) => (
+                      <span key={e.at} data-testid="fired-event" className="api-debug__fired">{`${e.intent} at ${(e.at / 1000).toFixed(1)} s`}</span>
+                    ))}
+              </dd>
             </dl>
             {camera.error && <p className="camera-debug__error">{CAMERA_ERROR_MESSAGES[camera.error]}</p>}
 
