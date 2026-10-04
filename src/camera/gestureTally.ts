@@ -18,9 +18,13 @@ export interface Tally {
 
 export const emptyTally = (): Tally => ({ hits: {}, frames: {}, current: null })
 
+/** Whether a reading is a real gesture: a hand, a named gesture, and a confident score. */
+export function countsAsGesture(d: Detection): boolean {
+  return d.handPresent && d.label !== 'None' && d.score >= MIN_SCORE
+}
+
 export function stepTally(tally: Tally, d: Detection): Tally {
-  const counted = d.handPresent && d.label !== 'None' && d.score >= MIN_SCORE
-  if (!counted) return tally.current === null ? tally : { ...tally, current: null }
+  if (!countsAsGesture(d)) return tally.current === null ? tally : { ...tally, current: null }
 
   const started = tally.current !== d.label
   return {

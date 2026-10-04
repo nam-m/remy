@@ -11,7 +11,7 @@ afterEach(() => {
 })
 
 const hand = Array.from({ length: 21 }, (_, i) => ({ x: 0.2 + i * 0.02, y: 0.3 + i * 0.01 }))
-const thumbsUp: Detection = { label: 'Thumb_Up', score: 0.93, handPresent: true, landmarks: hand }
+const thumbsUp: Detection = { label: 'Thumb_Up', score: 0.93, handPresent: true, landmarks: hand, handedness: 'Right' }
 const none: Detection = { label: 'None', score: 0, handPresent: false, landmarks: null }
 
 /** Fake MediaPipe + frame loop: tests push detections one frame at a time. */
@@ -79,6 +79,33 @@ describe('CameraDebug', () => {
       expect(screen.getByTestId('gesture')).toHaveTextContent('Thumb_Up')
       expect(screen.getByTestId('score')).toHaveTextContent('0.93')
       expect(screen.getByTestId('hand')).toHaveTextContent('yes')
+    })
+
+    it('shows which hand MediaPipe thinks it is, and nothing when there is no hand', async () => {
+      const fake = await liveWithDetection()
+      expect(screen.getByTestId('handedness')).toHaveTextContent('-')
+
+      fake.show({ ...thumbsUp, handedness: 'Left' })
+      expect(screen.getByTestId('handedness')).toHaveTextContent('Left')
+
+      fake.show(none)
+      expect(screen.getByTestId('handedness')).toHaveTextContent('-')
+    })
+
+    it('says whether the current reading counts, so a rejected reading is visible', async () => {
+      const fake = await liveWithDetection()
+      fake.show(thumbsUp)
+      expect(screen.getByTestId('counts')).toHaveTextContent('yes')
+
+      fake.show({ ...thumbsUp, score: 0.55 })
+      expect(screen.getByTestId('score')).toHaveTextContent('0.55')
+      expect(screen.getByTestId('counts')).toHaveTextContent('no, score under 0.7')
+
+      fake.show({ ...thumbsUp, label: 'None', score: 0.9 })
+      expect(screen.getByTestId('counts')).toHaveTextContent('no, no gesture recognized')
+
+      fake.show(none)
+      expect(screen.getByTestId('counts')).toHaveTextContent('no, no hand')
     })
 
     it('draws the 21 hand landmarks over the preview, and none without a hand', async () => {

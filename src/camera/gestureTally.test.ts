@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Detection } from './recognizer.ts'
-import { emptyTally, stepTally, type Tally } from './gestureTally.ts'
+import { countsAsGesture, emptyTally, stepTally, type Tally } from './gestureTally.ts'
 
 const det = (label: string, score: number, handPresent = true): Detection => ({
   label,
@@ -51,5 +51,21 @@ describe('stepTally (counts gesture attempts for the hour-1 test)', () => {
 
   it('emptyTally starts clean', () => {
     expect(emptyTally()).toEqual({ hits: {}, frames: {}, current: null })
+  })
+})
+
+describe('countsAsGesture', () => {
+  it('counts a named gesture with a hand at 0.7 or more', () => {
+    expect(countsAsGesture(det('Thumb_Up', 0.7))).toBe(true)
+    expect(countsAsGesture(det('Open_Palm', 0.95))).toBe(true)
+  })
+
+  it('does not count a score below 0.7', () => {
+    expect(countsAsGesture(det('Thumb_Up', 0.69))).toBe(false)
+  })
+
+  it('does not count None, or a reading with no hand', () => {
+    expect(countsAsGesture(det('None', 0.99))).toBe(false)
+    expect(countsAsGesture(det('Thumb_Up', 0.99, false))).toBe(false)
   })
 })

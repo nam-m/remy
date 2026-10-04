@@ -32,6 +32,7 @@ describe('toDetection', () => {
     const d = toDetection(result([[category('Thumb_Up', 0.93)]], [hand]) as never)
     expect(d).toMatchObject({ label: 'Thumb_Up', score: 0.93, handPresent: true })
     expect(d.landmarks).toHaveLength(21)
+    expect(d.handedness).toBe('Right')
     expect(d.landmarks?.[1]).toEqual({ x: 1 / 21, y: 0.5 })
   })
 
@@ -52,6 +53,15 @@ describe('toDetection', () => {
   it('treats a hand with an empty gesture list as None, hand present', () => {
     const d = toDetection(result([[]], [hand]) as never)
     expect(d).toMatchObject({ label: 'None', score: 0, handPresent: true })
+  })
+
+  it('reports the handedness MediaPipe gives, even with no known gesture', () => {
+    const left = { ...result([[category('None', 0.4)]], [hand]), handedness: [[category('Left', 0.97)]] }
+    expect(toDetection(left as never).handedness).toBe('Left')
+  })
+
+  it('has no handedness when there is no hand', () => {
+    expect(toDetection(result([], []) as never).handedness).toBeUndefined()
   })
 
   it('uses only the first hand', () => {

@@ -19,6 +19,8 @@ export interface Detection {
   handPresent: boolean
   /** The 21 hand landmarks, or null with no hand. */
   landmarks: Landmark[] | null
+  /** 'Left' or 'Right' as MediaPipe reports it. Undefined with no hand. */
+  handedness?: string
 }
 
 export interface Recognizer {
@@ -37,6 +39,7 @@ export function toDetection(result: GestureRecognizerResult): Detection {
     score: top?.score ?? 0,
     handPresent: true,
     landmarks: hand.map(({ x, y }) => ({ x, y })),
+    handedness: result.handedness[0]?.[0]?.categoryName,
   }
 }
 

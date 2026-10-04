@@ -3,10 +3,11 @@
 
 import { useEffect, useState } from 'react'
 import { CAMERA_ERROR_MESSAGES } from './cameraMessages.ts'
-import { emptyTally, stepTally } from './gestureTally.ts'
+import { countsAsGesture, emptyTally, MIN_SCORE, stepTally } from './gestureTally.ts'
 import type { GrabResult } from './grabSharpestFrame.ts'
 import { GrabPanel } from './GrabPanel.tsx'
 import { HandOverlay } from './HandOverlay.tsx'
+import type { Detection } from './recognizer.ts'
 import { useDetection, type DetectionDeps } from './useDetection.ts'
 import { useHatCam } from './useHatCam.ts'
 import './CameraDebug.css'
@@ -38,6 +39,14 @@ function useFrameRate(video: HTMLVideoElement | null, live: boolean): number | n
   }, [video, live])
 
   return fps
+}
+
+/** Why a reading does or does not count toward the attempts below. */
+function countsText(detection: Detection | null): string {
+  if (!detection || !detection.handPresent) return 'no, no hand'
+  if (detection.label === 'None') return 'no, no gesture recognized'
+  if (!countsAsGesture(detection)) return `no, score under ${MIN_SCORE}`
+  return 'yes'
 }
 
 export default function CameraDebug({
@@ -115,6 +124,10 @@ export default function CameraDebug({
               <dd data-testid="score">{detection?.handPresent ? detection.score.toFixed(2) : '—'}</dd>
               <dt>Hand</dt>
               <dd data-testid="hand">{detection?.handPresent ? 'yes' : 'no'}</dd>
+              <dt>Handedness</dt>
+              <dd data-testid="handedness">{detection?.handedness ?? '-'}</dd>
+              <dt>Counts?</dt>
+              <dd data-testid="counts">{countsText(detection)}</dd>
             </dl>
             {detectionError && <p className="camera-debug__error">{detectionError}</p>}
           </section>
