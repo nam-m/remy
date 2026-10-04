@@ -4,7 +4,7 @@
 import { isMockApi } from '../api/index.ts'
 import { USE_ANY_CAMERA } from '../camera/useAnyCam.ts'
 import type { CameraErrorKind } from '../camera/openHatCam.ts'
-import { useCooking, type GestureStatus, type HatCam } from '../cooking/contract.ts'
+import { useCooking, useDetectionReading, type DetectionReading, type GestureStatus, type HatCam } from '../cooking/contract.ts'
 
 type Part = { text: string; ok: boolean }
 
@@ -16,6 +16,7 @@ export function describeSetup(setup: {
   error: CameraErrorKind | null
   cooking: boolean
   gestures: GestureStatus
+  reading: DetectionReading | null
 }): { backend: Part; camera: Part; gestures: Part } {
   const name = setup.anyCam ? 'Laptop camera' : 'Hat cam'
   let state: string = setup.status
@@ -29,7 +30,9 @@ export function describeSetup(setup: {
   if (!setup.cooking) gesture = { text: 'Gestures: start on the cooking screen', ok: true }
   else if (gestures.status === 'error') gesture = { text: `Gestures: failed${gestures.error ? ` (${gestures.error})` : ''}`, ok: false }
   else if (gestures.status === 'loading') gesture = { text: 'Gestures: loading the hand model', ok: false }
-  else gesture = { text: gestures.handVisible ? 'Gestures: hand seen' : 'Gestures: ready, no hand in view', ok: true }
+  else if (!setup.reading?.handPresent) gesture = { text: 'Gestures: ready, no hand in view', ok: true }
+  else if (setup.reading.label === 'None') gesture = { text: 'Gestures: hand seen, no gesture', ok: true }
+  else gesture = { text: `Gestures: ${setup.reading.label} ${setup.reading.score.toFixed(2)}`, ok: true }
 
   return {
     backend: { text: setup.mock ? 'Stand-in backend' : 'Real backend', ok: !setup.mock },
@@ -40,6 +43,7 @@ export function describeSetup(setup: {
 
 export function DevTag() {
   const { camera, gestures, state } = useCooking()
+  const reading = useDetectionReading()
   const tag = describeSetup({
     mock: isMockApi(),
     anyCam: USE_ANY_CAMERA,
@@ -47,6 +51,7 @@ export function DevTag() {
     error: camera.error,
     cooking: state.phase === 'cooking',
     gestures,
+    reading,
   })
   return (
     <div className="ui-devtag" role="note" aria-label="Development setup">

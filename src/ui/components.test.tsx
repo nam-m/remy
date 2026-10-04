@@ -2,23 +2,14 @@
 // carry the cook-facing copy and the accessible names, so they are worth pinning down.
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { GestureLegend, HoldPill, VerdictOverlay } from './cooking.tsx'
+import { GestureLegend, HoldPill, VerdictPopup } from './cooking.tsx'
 import { ErrorBanner, HeadsUpBanner, ServingsStepper, VoicingProgress } from './prep.tsx'
 import { SAY } from './say.ts'
-import { CookingContext, HoldProgressContext } from '../cooking/context.ts'
-import type { CookingContextValue } from '../cooking/contract.ts'
+import { HoldProgressContext } from '../cooking/context.ts'
 import type { HoldProgress } from '../types.ts'
 
-// The verdict screens that wait for the cook show a live camera view, which reads the camera from context.
-const cooking = {
-  camera: { attachVideo() {}, video: null, status: 'live', error: null, label: null, stream: null, reconnects: 0, stalls: 0 },
-} as unknown as CookingContextValue
 const renderVerdict = (status: 'ready' | 'not_ready' | 'unsure', autoAdvanceAt: number | null = null, feedback = '') =>
-  render(
-    <CookingContext.Provider value={cooking}>
-      <VerdictOverlay verdict={{ status, feedback }} autoAdvanceAt={autoAdvanceAt} now={0} />
-    </CookingContext.Provider>,
-  )
+  render(<VerdictPopup verdict={{ status, feedback }} autoAdvanceAt={autoAdvanceAt} now={0} />)
 
 const renderPill = (hold: HoldProgress) =>
   render(
@@ -31,10 +22,16 @@ afterEach(cleanup)
 
 describe('GestureLegend', () => {
   it('always teaches all three gestures', () => {
-    render(<GestureLegend canCheck={false} />)
+    render(<GestureLegend canCheck />)
     for (const label of ['back', 'is it ready?', 'next']) {
       expect(screen.getByText(new RegExp(label, 'i'))).toBeTruthy()
     }
+  })
+
+  it('says so when a step has nothing to check, instead of a ✋ that silently does nothing', () => {
+    render(<GestureLegend canCheck={false} />)
+    expect(screen.getByText(/no check on this step/i)).toBeTruthy()
+    expect(screen.queryByText(/is it ready\?/i)).toBeNull()
   })
 
   it('dims ✋ on a step that cannot be checked, so the cook does not try it', () => {
@@ -49,7 +46,7 @@ describe('GestureLegend', () => {
   })
 })
 
-describe('VerdictOverlay', () => {
+describe('VerdictPopup', () => {
   it('says something different for each of the three answers', () => {
     for (const status of ['ready', 'not_ready', 'unsure'] as const) {
       const { unmount } = renderVerdict(status, null, 'because')
@@ -82,11 +79,10 @@ describe('VerdictOverlay', () => {
     }
   })
 
-  it('shows the live camera while it waits for the cook, but not on a ready verdict that moves on by itself', () => {
-    const { container: waiting } = renderVerdict('unsure')
-    expect(waiting.querySelector('.ui-verdict__cam')).toBeTruthy()
-    const { container: ready } = renderVerdict('ready', 2000)
-    expect(ready.querySelector('.ui-verdict__cam')).toBeNull()
+  it('is a popup, not a full-screen field, so it never covers the camera', () => {
+    const { container } = renderVerdict('unsure')
+    expect(container.querySelector('.ui-full')).toBeNull()
+    expect(container.querySelector('[role="status"].ui-verdict')).toBeTruthy()
   })
 })
 
@@ -100,6 +96,16 @@ describe('HoldPill', () => {
     renderPill({ intent: 'check', progress: 0.5 })
     expect(screen.getByText(/keep holding/i)).toBeTruthy()
     expect(screen.getByText(/is it ready\?/i)).toBeTruthy()
+  })
+
+  it('says there is nothing to check, rather than promising a check, on a step with no cue', () => {
+    render(
+      <HoldProgressContext.Provider value={{ intent: 'check', progress: 0.5 }}>
+        <HoldPill canCheck={false} />
+      </HoldProgressContext.Provider>,
+    )
+    expect(screen.getByText(/nothing to check on this step/i)).toBeTruthy()
+    expect(screen.queryByText(/is it ready\?/i)).toBeNull()
   })
 
   it('shows ✋ while checking, not a next arrow', () => {

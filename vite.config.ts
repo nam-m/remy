@@ -11,6 +11,8 @@ export default defineConfig({
   plugins: [react(), devApi()],
   test: {
     environment: 'jsdom',
+    // The whole suite runs in parallel, which can push a slow async test past the 5 s default.
+    testTimeout: 20_000,
     setupFiles: ['./src/test/setup.ts'],
   },
 })

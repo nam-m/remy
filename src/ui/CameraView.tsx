@@ -1,6 +1,7 @@
 // The live hat-cam view (§9.3 CameraView). One useHatCam() runs per tree and every view reuses its
-// stream; only the `primary` view registers with the hook, because that is the one whose frames the
-// keeper watches for freezes.
+// stream. In the app the provider keeps one hidden video that gestures and photos read, so these are
+// all plain windows; `primary` is for a page with no provider (the camera debug page), where a view
+// registers itself with the hook, and it is the one whose frames the keeper watches for freezes.
 import { useCallback, useEffect, useRef, type CSSProperties } from 'react'
 import { CAMERA_ERROR_MESSAGES } from '../camera/cameraMessages.ts'
 import type { HatCam } from '../camera/useHatCam.ts'

@@ -100,7 +100,7 @@ Design principles:
 ║  AUDIO + UI (Grace)            ▼                 │               │                   ║
 ║  ┌───────────────────────────────────────────┐   │  ┌────────────┴─────────────┐     ║
 ║  │ UI: RecipeInput · PrepReview ·            │   │  │ audio/player             │     ║
-║  │ CookingScreen · StepCard · VerdictOverlay  │   │  │ clipCache (blob URLs)   │     ║
+║  │ CookingScreen · StepCard · VerdictPopup  │   │  │ clipCache (blob URLs)   │     ║
 ║  │ DoneScreen ·                            │   │  │  browserSpeech fallback  │     ║
 ║  │ ServingsStepper · HoldPill · ErrorBanner  │   │  │  unlock (autoplay rule)  │     ║
 ║  └───────────────────────────────────────────┘   │  └──────────────────────────┘     ║
@@ -803,7 +803,7 @@ Surfaces are flat with a 2 px ink border and a hard offset shadow (`4px 4px 0 va
 | --- | --- | --- |
 | `RecipeInput` | `phase` is `input` or `parsing` | **Input:** two even panels. Left (umber): REMY logo, pink catch tag “Hey Remy, let's cook!”, headline "Cook it. Don't touch it.", one-line pitch, gesture hint chips (👍 next · 👎 back · ✋ is it ready?). Right (sand): `RemyBadge` (pink, sunny) with a bubble (`SAY.hello`, `SAY.ask`), textarea, **Let's cook!** and **Try the pancake demo**. **Parsing:** full slate field with `RemyLoader` (`SAY.reading`) and a three-line ticker (Finding ingredients · Moving hidden prep up front · Writing what "done" looks like). `ErrorBanner` |
 | `PrepReview` | `phase` is `prep` | Cream page, top bar with logo and a chip ("6 steps, about 25 minutes"). Left: white recipe card with `RemyBadge` (apricot, cookie), title, `ServingsStepper`, `IngredientList`. Right: "Before you start" `PrepChecklist`, then the camera setup check (`CameraView` "Remy's view" + "Can Remy see your bowl? Look down at it and check it's in the window."), Remy's head with a bubble (`SAY.prep`), full-width **Remy, let's cook!** (on when `canStart`), `VoicingProgress` |
-| `CookingScreen` | `phase` is `cooking` | Page backdrop is the current step's field, cross-fading 0.6 s; the content rises in from below on entry. Top bar: logo and `StepProgress`. A step-card carousel: every `StepCard` sits on one horizontal track (70vw cards, 32 px gap, 9vw lead) that slides on `--spring`; the current card is full size, the others 40 % opacity at 0.9 scale. Bottom left: Remy's head with a bubble (`SAY.go` on step 1, `SAY.headsUp` before a heads-up, then the step text; `SAY.look` while checking). Bottom right: `GestureLegend`. `HoldPill`, and `VerdictOverlay` on top. The check happens inside the current card; there is no separate looking overlay or camera thumbnail |
+| `CookingScreen` | `phase` is `cooking` | Page backdrop is the current step's field, cross-fading 0.6 s; the content rises in from below on entry. Top bar: logo and `StepProgress`. A step-card carousel: every `StepCard` sits on one horizontal track (70vw cards, 32 px gap, 9vw lead) that slides on `--spring`; the current card is full size, the others 40 % opacity at 0.9 scale. Bottom left: Remy's head with a bubble (`SAY.go` on step 1, `SAY.headsUp` before a heads-up, then the step text; `SAY.look` while checking). Bottom right: `GestureLegend`. `HoldPill`, and `VerdictPopup` over the foot of the screen (Remy's line and the legend step aside while it is up). The check happens inside the current card; there is no separate looking overlay or camera thumbnail, and the verdict never covers the camera |
 | `DoneScreen` | `phase` is `done` | Sage field, `RemyBadge` (sparkle, burst) with a bubble (`SAY.done`, "Pancakes are done.", stats line from `state.stats`), cream **Let's cook something else!** |
 
 ### 9.3 Components
@@ -821,17 +821,17 @@ Surfaces are flat with a 2 px ink border and a hard offset shadow (`4px 4px 0 va
 | `HoldPill` | `HoldProgress` | Ring plus "Keep holding… next step"; icon by intent; fades out when idle |
 | `GestureLegend` | `canCheck` | Segmented pill group "👎 back · ✋ is it ready? · 👍 next"; next is the solid cream segment; ✋ is pink when `canCheck`, 35 % opacity otherwise |
 | `SpeechBubble` | `children`, `small` | White bubble, ink border, hard shadow, tail pointing at Remy on the left; bold lines in umber |
-| `VerdictOverlay` | `verdict`, `autoAdvanceAt` | The verdict field wipes in as a circle growing from the camera window (0.5 s), then hero and text pop on `--bouncy`: a 300 px spinning shape with Remy, the catchline (`SAY.verdict`, with ✦) and the feedback at 60 px weight 900. Three variants, below; stays until the next gesture |
+| `VerdictPopup` | `verdict`, `autoAdvanceAt` | A popup card in the verdict's field, centred over the foot of the screen (up to 1000 px wide), springing up on `--bouncy`. The step card and its camera stay in view above it, so the cook can see the picture Remy judged and re-frame it. A 140 px spinning shape with Remy, the catchline (`SAY.verdict`, with ✦) and the feedback at about 34 px weight 900. Three variants, below; stays until the next gesture |
 | `ErrorBanner` | `error` | One line at the top with a dismiss button |
 | `VoicingProgress` | `ready`, `total` | "Preparing voice… 4/10" near the Start button, with a **Try again** button after `voicingFailed` |
 
-`VerdictOverlay` variants:
+`VerdictPopup` variants:
 
 | `status` | Field | Hero | Catchline | Footer |
 | --- | --- | --- | --- | --- |
 | `ready` | `--ready` | Sparkle burst, three twinkling ✦, `RemyFlipbook pose="cheer"` | "Oui, chef!" | "Moving on in 2 seconds · 👎 to stay", with a countdown bar |
 | `not_ready` | `--notyet` | Translucent clover, Remy's head rocking | "Almost, chef!" | "✋ check again whenever you like · 👍 move on anyway" |
-| `unsure` | `--unsure` | Translucent square, Remy's head rocking | "Hmm, my whiskers can't see that" | "✋ try again" |
+| `unsure` | `--unsure` | Translucent square, Remy's head rocking | "Hmm, my whiskers can't see that" | "✋ try again · 👍 move on anyway" |
 
 Remy appears in three forms (assets in `public/remy/`):
 
@@ -1068,7 +1068,7 @@ From `docs/PLAN.md` (10-hour hackathon). All tracks start at once against the sh
 | 0–0.5 | App deployed to Vercel, heyremy.tech pointed at it, hat rig taped up | Hat rig; hour-1 gesture test | Contract additions in `types.ts`; fixtures | Vercel deploy, domain | Gemini check of a lumpy and a smooth photo |
 | 0.5–3 | Each track works alone | `useHatCam`, `recognizer`, gestures logged | Reducer, `scaling`, controller with fakes | `RecipeInput`, `PrepReview`, `CookingScreen` with hardcoded steps | `/api/parse` returns JSON, `/api/check` judges a test photo, `/api/speak` |
 | 3 | Integration | Gestures move through steps | `parseFlow`, `voiceFlow` on real endpoints | ElevenLabs speaks steps; browser fallback | |
-| 5 | Full flow on the deployed URL: paste → steps → gesture → open palm → spoken verdict | `grabSharpestFrame`, `handPresence` | `checkFlow`, auto-advance | `StepCard`, `VerdictOverlay`, `HoldPill` | |
+| 5 | Full flow on the deployed URL: paste → steps → gesture → open palm → spoken verdict | `grabSharpestFrame`, `handPresence` | `checkFlow`, auto-advance | `StepCard`, `VerdictPopup`, `HoldPill` | |
 | 5–7.5 | Prompts tuned, UI polish, stretch if hour 5 landed on time, backup video | Framing and lighting | Error messages | Type sizes from 2 m, `DoneScreen` | Prompt tuning on 10+ photos and 5+ recipes |
 | 7.5 | Feature freeze, known-good build tagged | | | | |
 | 7.5–10 | Demo-path fixes only, README with AI disclosure, cooking footage | | | | |
@@ -1141,7 +1141,7 @@ src/
                                     # CameraSetup, VoicingProgress, ErrorBanner,
                                     # CueChip, HeadsUpBanner
     cooking.tsx                      # StepProgress, StepCard, HoldPill, GestureLegend,
-                                    # VerdictOverlay
+                                    # VerdictPopup
   test/                               # Vitest specs next to the pure modules
 ```
 

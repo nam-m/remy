@@ -58,7 +58,7 @@ export function StepCard({
       <div className="ui-card__media" style={{ background: field.back }}>
         <div className="ui-card__frame">
           {current ? (
-            <CameraView cam={camera} primary caption="Remy's view" style={{ '--cam-bg': field.back, '--cam-fg': '#fff7ea' } as CSSProperties} />
+            <CameraView cam={camera} caption="Remy's view" style={{ '--cam-bg': field.back, '--cam-fg': '#fff7ea' } as CSSProperties} />
           ) : (
             <div className="ui-card__ghost" aria-hidden />
           )}
@@ -78,11 +78,16 @@ export function StepCard({
 }
 
 /** The ring that fills while a gesture is held, so the cook can see the hold is counting. */
-export function HoldPill() {
+export function HoldPill({ canCheck = true }: { canCheck?: boolean }) {
   const hold = useHoldProgress() // read here, so only the pill re-renders as the hold ticks
   if (!hold.intent || hold.progress <= 0) return null
   const icon = hold.intent === 'next' ? '👍' : hold.intent === 'back' ? '👎' : '✋'
-  const label = hold.intent === 'check' ? 'Keep holding… is it ready?' : `Keep holding… ${hold.intent} step`
+  const label =
+    hold.intent === 'check'
+      ? canCheck
+        ? 'Keep holding… is it ready?'
+        : 'Nothing to check on this step. 👍 when you are done'
+      : `Keep holding… ${hold.intent} step`
   return (
     <div className="ui-hold" style={{ '--p': hold.progress } as CSSProperties}>
       <span className="ui-hold__ring">
@@ -111,27 +116,11 @@ export function GestureLegend({ canCheck }: { canCheck: boolean }) {
                   : undefined
             }
           >
-            {hint.icon} {hint.label}
+            {hint.icon} {hint.intent === 'check' && !canCheck ? 'no check on this step' : hint.label}
           </span>
         ))}
       </div>
     </div>
-  )
-}
-
-/**
- * A small live view in the corner of a verdict that waits for the cook: they can see their hand for
- * ✋ and 👍, or move the bowl, instead of gesturing at a screen that hides the camera.
- */
-function VerdictCamera() {
-  const { camera } = useCooking()
-  return (
-    <CameraView
-      cam={camera}
-      caption="Remy's view"
-      className="ui-verdict__cam"
-      style={{ '--cam-ring': 'var(--cream)', '--cam-bg': 'var(--ink)', '--cam-fg': 'var(--cream)' } as CSSProperties}
-    />
   )
 }
 
@@ -147,45 +136,43 @@ export function GestureFallbackNote() {
 }
 
 /**
- * The verdict, wiping in as a circle from the camera window. `ready` celebrates and counts down to
- * the next step; the other two wait for the cook (§9.3).
+ * The verdict, as a popup over the foot of the cooking screen. The step card and its camera stay in
+ * view above it. `ready` celebrates and counts down to the next step; the other two wait for the
+ * cook, who can always check again (✋) or move on (👍) (§9.3).
  */
-export function VerdictOverlay({ verdict, autoAdvanceAt, now }: { verdict: { status: 'ready' | 'not_ready' | 'unsure'; feedback: string }; autoAdvanceAt: number | null; now: number }) {
+export function VerdictPopup({ verdict, autoAdvanceAt, now }: { verdict: { status: 'ready' | 'not_ready' | 'unsure'; feedback: string }; autoAdvanceAt: number | null; now: number }) {
   const ready = verdict.status === 'ready'
   const left = autoAdvanceAt === null ? 0 : Math.max(0, Math.min(1, (autoAdvanceAt - now) / AUTO_ADVANCE_MS))
 
   return (
-    <div className="ui-full ui-wipe" role="status" style={{ background: VERDICT_FIELDS[verdict.status] }}>
-      <div className={`ui-verdict ui-verdict--${verdict.status}`}>
-        <div className="ui-verdict__hero">
-          <div className="ui-verdict__shape" style={{ clipPath: shape(VERDICT_SHAPE[verdict.status]) }} />
-          {ready && (
-            <>
-              <i className="ui-verdict__spark ui-verdict__spark--1">✦</i>
-              <i className="ui-verdict__spark ui-verdict__spark--2">✦</i>
-              <i className="ui-verdict__spark ui-verdict__spark--3">✦</i>
-            </>
-          )}
-          {ready ? <RemyFlipbook pose="cheer" className="ui-verdict__mascot" /> : <img src={HEAD_SRC} alt="" className="ui-verdict__head" />}
-        </div>
-        <div>
-          <div className="ui-verdict__catchline">{SAY.verdict[verdict.status]}</div>
-          <p className="ui-verdict__text">{verdict.feedback}</p>
-          {ready ? (
-            <>
-              <p className="ui-verdict__foot">Moving on in {Math.ceil(left * (AUTO_ADVANCE_MS / 1000))} seconds · 👎 to stay</p>
-              <div className="ui-countdown" aria-hidden>
-                <i style={{ transform: `scaleX(${left})` }} />
-              </div>
-            </>
-          ) : (
-            <p className="ui-verdict__foot">
-              {verdict.status === 'not_ready' ? '✋ check again whenever you like · 👍 move on anyway' : '✋ try again · 👍 move on anyway'}
-            </p>
-          )}
-        </div>
+    <div className={`ui-verdict ui-verdict--${verdict.status}`} role="status" style={{ background: VERDICT_FIELDS[verdict.status] }}>
+      <div className="ui-verdict__hero">
+        <div className="ui-verdict__shape" style={{ clipPath: shape(VERDICT_SHAPE[verdict.status]) }} />
+        {ready && (
+          <>
+            <i className="ui-verdict__spark ui-verdict__spark--1">✦</i>
+            <i className="ui-verdict__spark ui-verdict__spark--2">✦</i>
+            <i className="ui-verdict__spark ui-verdict__spark--3">✦</i>
+          </>
+        )}
+        {ready ? <RemyFlipbook pose="cheer" className="ui-verdict__mascot" /> : <img src={HEAD_SRC} alt="" className="ui-verdict__head" />}
       </div>
-      {!ready && <VerdictCamera />}
+      <div className="ui-verdict__body">
+        <div className="ui-verdict__catchline">{SAY.verdict[verdict.status]}</div>
+        <p className="ui-verdict__text">{verdict.feedback}</p>
+        {ready ? (
+          <>
+            <p className="ui-verdict__foot">Moving on in {Math.ceil(left * (AUTO_ADVANCE_MS / 1000))} seconds · 👎 to stay</p>
+            <div className="ui-countdown" aria-hidden>
+              <i style={{ transform: `scaleX(${left})` }} />
+            </div>
+          </>
+        ) : (
+          <p className="ui-verdict__foot">
+            {verdict.status === 'not_ready' ? '✋ check again whenever you like · 👍 move on anyway' : '✋ try again · 👍 move on anyway'}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

@@ -27,11 +27,10 @@ export interface Controller extends FlowController {
 
 // ---------- Context (§6.9, §9.5) ----------
 
-/** Whether hand gestures can be read: the hand model loaded, and whether a hand is in view. */
+/** Whether hand gestures can be read: has the hand model loaded. */
 export interface GestureStatus {
   status: DetectionStatus
   error: string | null
-  handVisible: boolean
 }
 
 /**
@@ -50,7 +49,8 @@ export interface CookingContextValue {
   voiceFailed: boolean
 }
 
-export { CookingContext, HoldProgressContext, NO_HOLD, useCooking, useHoldProgress } from './context.ts'
+export { CookingContext, DetectionContext, HoldProgressContext, NO_HOLD, useCooking, useDetectionReading, useHoldProgress } from './context.ts'
+export type { DetectionReading } from './context.ts'
 
 export { DEMO_RECIPE_TEXT } from './demoRecipe.ts'
 export { CookingProvider } from './CookingProvider.tsx'

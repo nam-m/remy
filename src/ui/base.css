@@ -218,3 +218,13 @@
     transition: none !important;
   }
 }
+/* The provider's own video: rendered (so frames keep arriving) but invisible and out of the way. */
+.ui-detect-video {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  height: 2px;
+  clip-path: inset(50%);
+  pointer-events: none;
+}

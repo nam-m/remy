@@ -1,5 +1,5 @@
 /* The cooking screen's two big pieces: the step-card carousel (§9.3 StepCard) and the verdict
-   wipe that covers it (§9.3 VerdictOverlay). */
+   popup over its foot (§9.3 VerdictPopup). */
 
 /* --- The track: 70vw cards, 32 px apart, 9vw of lead, sliding on --spring. --- */
 .ui-track {
@@ -213,34 +213,37 @@
   opacity: 0.9;
 }
 
-/* --- VerdictOverlay: the field wipes in as a circle from the camera window, then the hero and
-   text pop on --bouncy. --- */
-.ui-wipe {
-  z-index: 6;
-  animation: ui-wipe 0.5s cubic-bezier(0.7, 0, 0.2, 1);
-}
-
-@keyframes ui-wipe {
-  from {
-    clip-path: circle(0% at 68% 45%);
-  }
-  to {
-    clip-path: circle(150% at 68% 45%);
-  }
-}
-
+/* --- VerdictPopup: the answer pops up over the foot of the cooking screen. The step card and its
+   camera stay in view above it, so the cook can see the picture Remy judged and re-frame it. --- */
 .ui-verdict {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  z-index: 6;
   display: flex;
   align-items: center;
-  gap: 36px;
-  animation: ui-pop 0.9s 0.1s var(--bouncy) backwards;
+  gap: 28px;
+  width: min(1000px, 90vw);
+  padding: 18px 40px 18px 24px;
+  border-radius: 44px 44px 44px 14px;
+  box-shadow: 0 24px 60px rgb(0 0 0 / 40%);
+  color: var(--cream);
+  transform: translateX(-50%);
+  animation: ui-popup 0.7s var(--bouncy) backwards;
 }
 
-@keyframes ui-pop {
+@keyframes ui-popup {
   from {
     opacity: 0;
-    transform: scale(0.8);
+    transform: translateX(-50%) translateY(60px) scale(0.92);
   }
+}
+
+/* While the popup is up it carries the gestures itself, so Remy's line and the legend step aside. */
+.ui-cook--verdict .ui-cook__remy,
+.ui-cook--verdict .ui-legend {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .ui-verdict__hero {
@@ -249,8 +252,8 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  width: 300px;
-  height: 300px;
+  width: 140px;
+  height: 140px;
 }
 
 .ui-verdict__shape {
@@ -268,13 +271,13 @@
 
 .ui-verdict__mascot {
   position: relative;
-  width: 250px;
+  width: 120px;
 }
 
 /* The other two verdicts rock Remy's head rather than animating the flipbook. */
 .ui-verdict__head {
   position: relative;
-  width: 190px;
+  width: 100px;
   transform-origin: 50% 85%;
   animation: badge-rock 3.2s ease-in-out infinite;
 }
@@ -282,27 +285,27 @@
 .ui-verdict__spark {
   position: absolute;
   color: var(--cream);
-  font-size: 34px;
+  font-size: 24px;
   font-style: normal;
   animation: ui-twinkle 1.4s ease-in-out infinite;
 }
 
 .ui-verdict__spark--1 {
-  top: 6%;
-  right: 8%;
+  top: 4%;
+  right: 6%;
 }
 
 .ui-verdict__spark--2 {
   top: 30%;
-  left: 2%;
-  font-size: 24px;
+  left: 0;
+  font-size: 18px;
   animation-delay: 0.4s;
 }
 
 .ui-verdict__spark--3 {
   right: 0;
-  bottom: 10%;
-  font-size: 28px;
+  bottom: 8%;
+  font-size: 20px;
   animation-delay: 0.8s;
 }
 
@@ -319,8 +322,12 @@
   }
 }
 
+.ui-verdict__body {
+  min-width: 0;
+}
+
 .ui-verdict__catchline {
-  font-size: 26px;
+  font-size: 21px;
   font-weight: 800;
 }
 
@@ -330,18 +337,18 @@
 }
 
 .ui-verdict__text {
-  max-width: 600px;
-  margin: 8px 0 0;
+  max-width: 640px;
+  margin: 4px 0 0;
   color: var(--cream);
-  font-size: 60px;
+  font-size: clamp(22px, 2.3vw, 34px);
   font-weight: 900;
   letter-spacing: -0.01em;
-  line-height: 1.1;
+  line-height: 1.12;
 }
 
 .ui-verdict__foot {
-  margin: 18px 0 0;
-  font-size: 20px;
+  margin: 10px 0 0;
+  font-size: 17px;
   font-weight: 700;
   opacity: 0.9;
 }
@@ -354,9 +361,9 @@
 
 /* The countdown bar under a ready verdict. */
 .ui-countdown {
-  width: 420px;
-  height: 8px;
-  margin-top: 14px;
+  width: min(420px, 100%);
+  height: 6px;
+  margin-top: 10px;
   border-radius: 999px;
   background: rgb(255 247 234 / 25%);
   overflow: hidden;
@@ -372,25 +379,10 @@
 @media (prefers-reduced-motion: reduce) {
   .ui-scan,
   .ui-card__peek,
-  .ui-wipe,
   .ui-verdict,
   .ui-verdict__shape,
   .ui-verdict__spark,
   .ui-verdict__head {
     animation: none;
   }
-}
-/* The live view in the corner of a verdict that waits for the cook. */
-.ui-verdict__cam {
-  position: absolute;
-  top: 28px;
-  right: 36px;
-  width: clamp(200px, 18vw, 320px);
-  aspect-ratio: 16 / 9;
-  border-radius: 20px;
-  outline-offset: 4px;
-}
-
-.ui-verdict__cam figcaption {
-  font-size: 13px;
 }

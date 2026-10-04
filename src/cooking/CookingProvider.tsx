@@ -17,7 +17,7 @@ import { stepClipId } from './scaling.ts'
 import { currentStep, gesturesEnabled } from './selectors.ts'
 import { cookingReducer, initialState, type Action, type CookingState } from './state.ts'
 import { filledSteps } from './uiSelectors.ts'
-import { CookingContext, HoldProgressContext } from './context.ts'
+import { CookingContext, DetectionContext, HoldProgressContext, type DetectionReading } from './context.ts'
 import type { Controller, CookingContextValue, GestureStatus } from './contract.ts'
 
 /** Changing servings waits this long before voicing again, so holding + doesn't start a run per click (§6.8). */
@@ -233,10 +233,11 @@ export function CookingProvider({ children }: { children: React.ReactNode }) {
     [attachVideo, video, status, error, label, stream, reconnects, stalls],
   )
 
-  const { detectionStatus, detectionError, handVisible } = camera
-  const gestures = useMemo<GestureStatus>(
-    () => ({ status: detectionStatus, error: detectionError, handVisible }),
-    [detectionStatus, detectionError, handVisible],
+  const { detectionStatus, detectionError, detection } = camera
+  const gestures = useMemo<GestureStatus>(() => ({ status: detectionStatus, error: detectionError }), [detectionStatus, detectionError])
+  const reading = useMemo<DetectionReading | null>(
+    () => (detection ? { label: detection.label, score: detection.score, handPresent: detection.handPresent } : null),
+    [detection],
   )
 
   const value = useMemo<CookingContextValue>(
@@ -246,7 +247,13 @@ export function CookingProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <CookingContext.Provider value={value}>
-      <HoldProgressContext.Provider value={camera.holdProgress}>{children}</HoldProgressContext.Provider>
+      <HoldProgressContext.Provider value={camera.holdProgress}>
+        <DetectionContext.Provider value={reading}>{children}</DetectionContext.Provider>
+      </HoldProgressContext.Provider>
+      {/* The one video the hand model and the check photo read. It stays mounted for the whole session,
+          so moving between steps never restarts gesture detection; every visible camera window just
+          shows the same stream. Clipped, not display:none, so the browser keeps delivering frames. */}
+      <video ref={camera.attachVideo} className="ui-detect-video" muted playsInline autoPlay aria-hidden tabIndex={-1} />
     </CookingContext.Provider>
   )
 }

@@ -33,12 +33,14 @@ async function startCooking() {
 }
 
 describe('after a verdict that is not ready', () => {
-  it('shows the camera and both ways on, and 👍 moves to the next step', async () => {
+  it('stays a popup over the card, offers both ways on, and 👍 moves to the next step', async () => {
     await startCooking()
 
     press(' ')
     await screen.findByText(SAY_NOT_READY, undefined, { timeout: 10_000 })
-    expect(document.querySelector('.ui-verdict__cam')).toBeTruthy()
+    // A popup: the step card and its camera are still there, not covered by a full-screen field.
+    expect(document.querySelector('.ui-full')).toBeNull()
+    expect(document.querySelector('.ui-card--now video')).toBeTruthy()
     expect(document.querySelector('.ui-verdict__foot')?.textContent).toMatch(/✋.*👍/)
 
     press('n')

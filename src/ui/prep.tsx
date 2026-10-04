@@ -140,7 +140,6 @@ export function CameraSetup() {
     <div className="ui-setup">
       <CameraView
         cam={camera}
-        primary
         caption="Remy's view"
         className="ui-prep-cam"
         style={{ '--cam-ring': 'var(--apricot)', '--cam-bg': 'var(--sand)', '--cam-fg': 'var(--umber)' } as React.CSSProperties}
