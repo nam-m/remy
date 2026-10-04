@@ -33,6 +33,30 @@ function toCameraError(error: unknown): CameraError {
 const stopAll = (stream: MediaStream) => stream.getTracks().forEach((t) => t.stop())
 
 /**
+ * Gets camera permission, which is what makes the device labels visible. Opens the default camera
+ * once for it; if that one can't be opened (busy, or an iPhone that is out of reach), any other
+ * camera will do, because the permission is for all of them. A refusal is final.
+ */
+async function grantPermission(media: MediaDevices, devices: MediaDeviceInfo[]): Promise<void> {
+  const refused = (e: unknown) => toCameraError(e).kind === 'denied'
+  try {
+    stopAll(await media.getUserMedia({ video: true, audio: false }))
+    return
+  } catch (first) {
+    if (refused(first)) throw first
+    for (const device of devices.filter((d) => d.kind === 'videoinput')) {
+      try {
+        stopAll(await media.getUserMedia({ video: { deviceId: { exact: device.deviceId } }, audio: false }))
+        return
+      } catch (e) {
+        if (refused(e)) throw e
+      }
+    }
+    throw first
+  }
+}
+
+/**
  * Opens the hat cam and only the hat cam. Device labels are hidden until the
  * page has camera permission, so the first run opens any camera once to get
  * permission, closes it, and looks again.
@@ -43,7 +67,7 @@ export async function openHatCam(
   try {
     let devices = await media.enumerateDevices()
     if (devices.every((d) => d.label === '')) {
-      stopAll(await media.getUserMedia({ video: true, audio: false }))
+      await grantPermission(media, devices)
       devices = await media.enumerateDevices()
     }
 

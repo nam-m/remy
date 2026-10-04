@@ -37,6 +37,28 @@ describe('openHatCam', () => {
     expect(opened[1].readyState).toBe('live')
   })
 
+  it('gets permission from another camera when the default one cannot be opened', async () => {
+    const media = new FakeMediaDevices([IPHONE, C270])
+    media.failNext('NotReadableError')
+    const { label } = await openHatCam(asMedia(media))
+    expect(label).toBe(C270.label)
+  })
+
+  it('reports the default camera\'s error when no camera can give permission', async () => {
+    const media = new FakeMediaDevices([MACBOOK])
+    media.getUserMedia = async () => {
+      throw new DOMException('NotReadableError', 'NotReadableError')
+    }
+    await expect(openHatCam(asMedia(media))).rejects.toMatchObject({ kind: 'busy' })
+  })
+
+  it('does not try other cameras once permission is refused', async () => {
+    const media = new FakeMediaDevices([MACBOOK, C270])
+    media.failNext('NotAllowedError')
+    await expect(openHatCam(asMedia(media))).rejects.toMatchObject({ kind: 'denied' })
+    expect(media.calls).toHaveLength(1)
+  })
+
   it('skips the permission step when labels are already visible', async () => {
     const media = new FakeMediaDevices([MACBOOK, C270])
     media.permissionGranted = true
