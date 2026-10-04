@@ -1,5 +1,10 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createApi } from './index.ts'
+
+// A developer's own env/.env.local may set VITE_MOCK_API; the tests must not depend on it.
+beforeEach(() => {
+  vi.stubEnv('VITE_MOCK_API', '')
+})
 
 afterEach(() => {
   vi.unstubAllEnvs()
